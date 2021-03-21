@@ -8,7 +8,7 @@
 // using templates for processPointClouds so also include .cpp to help linker
 #include "processPointClouds.cpp" 
 #include <memory>
-
+static int ID=0;
 std::vector<Car> initHighway(bool renderScene, pcl::visualization::PCLVisualizer::Ptr& viewer)
 {
 
@@ -53,17 +53,71 @@ void simpleHighway(pcl::visualization::PCLVisualizer::Ptr& viewer)
 
     // TODO:: Create point processor
     ProcessPointClouds<pcl::PointXYZ> *Processor=new ProcessPointClouds<pcl::PointXYZ>;
-    auto p=Processor->SegmentPlane(dyvelony->scan(),100,0.2);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr Scan_points=dyvelony->scan();
+    auto p=Processor->SegmentPlane(Scan_points,100,0.2);
     //renderPointCloud(viewer,p.first,"obstacle",Color(1,0,0));
     //renderPointCloud(viewer,p.second,"plane",Color(0,1,0));
-    auto clusters=Processor->Clustering(p.first,1,3,30);
-    int ID=0;
+    //auto clusters=Processor->Clustering(p.first,1,3,30);
+    KdTree* tree = new KdTree;
+    //std::vector<std::vector<float>> Tree_Points;
+    //int id_point=0;
+    for (int i=0;i<(p.first)->points.size();i++) 
+    {
+        std::vector<float> Point;
+        Point.push_back((p.first)->points[i].x);
+        Point.push_back((p.first)->points[i].y);
+        Point.push_back((p.first)->points[i].z);
+        //Tree_Points.push_back(Point);
+        tree->insert(Point,i);
+        //id_point++;
+    }
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clusters=Processor->euclideanCluster(p.first, tree, 1);
+
+    //int ID=0;
     std::vector<Color> colors={Color(1,0,0),Color(0,1,0),Color(0,0,1)};
     for(auto cluster:clusters)
     {
         renderPointCloud(viewer,cluster,"cluster"+std::to_string(ID),colors[ID]);
+        renderBox(viewer,Processor->BoundingBox(cluster),ID,colors[ID],1);
         ID++;
     }
+}
+
+void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer, ProcessPointClouds<pcl::PointXYZI> *Processor, pcl::PointCloud<pcl::PointXYZI>::Ptr Cloud)
+{
+    //ProcessPointClouds<pcl::PointXYZI> *Processor=new ProcessPointClouds<pcl::PointXYZI>;
+    //pcl::PointCloud<pcl::PointXYZI>::Ptr Cloud=Processor->loadPcd("../src/sensors/data/pcd/data_1/0000000000.pcd");
+    Cloud=Processor->FilterCloud(Cloud, 0.2,Eigen::Vector4f(-15,-5,-2.5,1),Eigen::Vector4f(30,8,1.5,1));
+    auto p = Processor->SegmentPlane(Cloud,100,0.2);
+    renderPointCloud(viewer,p.second,"plane",Color(0,1,0));
+    //renderPointCloud(viewer,p.first,"obstacle",Color(1,0,0));
+    //auto clusters=Processor->Clustering(p.first,0.3,10,800);
+    KdTree* tree = new KdTree;
+    //std::vector<std::vector<float>> Tree_Points;
+    //int id_point=0;
+    for (int i=0;i<(p.first)->points.size();i++) 
+    {
+        std::vector<float> Point;
+        Point.push_back((p.first)->points[i].x);
+        Point.push_back((p.first)->points[i].y);
+        Point.push_back((p.first)->points[i].z);
+        //Tree_Points.push_back(Point);
+        tree->insert(Point,i);
+        //id_point++;
+    }
+    std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> clusters=Processor->euclideanCluster(p.first, tree, 0.3);
+
+    std::vector<Color> colors={Color(1,0,0),Color(0,1,0),Color(0,0,1),Color(0,1,1)};
+    for(auto cluster:clusters)
+    {
+        int id=ID%4;
+        renderPointCloud(viewer,cluster,"cluster"+std::to_string(ID),colors[id]);
+        renderBox(viewer,Processor->BoundingBox(cluster),ID,Color(1,0,0),1);
+        ID++;
+        
+    }
+
+    //renderPointCloud(viewer,Cloud,"input");
 }
 
 
@@ -96,12 +150,26 @@ int main (int argc, char** argv)
     std::cout << "starting enviroment" << std::endl;
 
     pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-    CameraAngle setAngle = TopDown;
+    CameraAngle setAngle = FPS;
     initCamera(setAngle, viewer);
-    simpleHighway(viewer);
-
+    //simpleHighway(viewer);
+    ProcessPointClouds<pcl::PointXYZI> *Processor=new ProcessPointClouds<pcl::PointXYZI>;
+    std::vector<boost::filesystem::path> paths=Processor->streamPcd("../src/sensors/data/pcd/data_1/");
+    auto iterate=paths.begin();
+    //cityBlock(viewer);
     while (!viewer->wasStopped ())
     {
+        viewer->removeAllPointClouds();
+        viewer->removeAllShapes();
+        pcl::PointCloud<pcl::PointXYZI>::Ptr Cloud=Processor->loadPcd((*iterate).string());
+        cityBlock(viewer,Processor,Cloud);
+        iterate++;
+        if(iterate==paths.end())
+        {
+            iterate=paths.begin();
+        }
+        
+        
         viewer->spinOnce ();
     } 
 }

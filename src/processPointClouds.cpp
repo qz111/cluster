@@ -28,12 +28,32 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     auto startTime = std::chrono::steady_clock::now();
 
     // TODO:: Fill in the function to do voxel grid point reduction and region based filtering
-
+    pcl::VoxelGrid<PointT> sor;
+    typename pcl::PointCloud<PointT>::Ptr cloud_filtered (new pcl::PointCloud<PointT>);
+    sor.setInputCloud (cloud);
+    sor.setLeafSize(filterRes,filterRes,filterRes);
+    sor.filter(*cloud_filtered);
+    pcl::CropBox<PointT> region(true);
+    region.setMin(minPoint);
+    region.setMax(maxPoint);
+    region.setInputCloud(cloud_filtered);
+    region.filter(*cloud_filtered);
+    pcl::CropBox<PointT> region_roof;
+    region_roof.setMin(Eigen::Vector4f(-1.5,-1.7,-1,1));
+    region_roof.setMax(Eigen::Vector4f(2.6,1.7,-0.4,1));
+    typename pcl::PointIndices::Ptr index_roof(new pcl::PointIndices);
+    region_roof.setInputCloud(cloud_filtered);
+    region_roof.filter(index_roof->indices);
+    pcl::ExtractIndices<PointT> extract;
+    extract.setInputCloud(cloud_filtered);
+    extract.setIndices(index_roof);
+    extract.setNegative(true);
+    extract.filter(*cloud_filtered);
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "filtering took " << elapsedTime.count() << " milliseconds" << std::endl;
 
-    return cloud;
+    return cloud_filtered;
 
 }
 
@@ -242,5 +262,51 @@ std::vector<boost::filesystem::path> ProcessPointClouds<PointT>::streamPcd(std::
     sort(paths.begin(), paths.end());
 
     return paths;
+
+}
+
+template<typename PointT>
+void ProcessPointClouds<PointT>::Clustering(std::vector<bool> &notpro, typename pcl::PointCloud<PointT>::Ptr cluster, KdTree* tree, float distanceTol, const std::vector<std::vector<float>>& t_points, const int &id, typename pcl::PointCloud<PointT>::Ptr points)
+{
+	cluster->points.push_back(points->points[id]);
+	notpro[id]=false;
+	std::vector<int> ids=tree->search(t_points[id], distanceTol);
+	for(auto index: ids)
+	{
+		auto check=notpro[index];
+		if(check==true)
+		{
+			Clustering(notpro,cluster, tree, distanceTol,t_points,index,points);
+		}
+	}
+}
+
+template<typename PointT>
+std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::euclideanCluster(typename pcl::PointCloud<PointT>::Ptr points, KdTree* tree, float distanceTol)
+{
+
+	// TODO: Fill out this function to return list of indices for each cluster
+
+	std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
+    std::vector<std::vector<float>> t_points;
+    for(auto point:points->points)
+    {
+        std::vector<float> Point;
+        Point.push_back(point.x);
+        Point.push_back(point.y);
+        Point.push_back(point.z);
+        t_points.push_back(Point);
+    }
+	std::vector<bool> not_Processed(t_points.size(),true);
+	for(int i=0;i<t_points.size();i++)
+	{
+		if(not_Processed[i]==true)
+		{
+			typename pcl::PointCloud<PointT>::Ptr cluster (new pcl::PointCloud<PointT>);
+			Clustering(not_Processed,cluster,tree,distanceTol,t_points,i,points);
+			clusters.push_back(cluster);
+		}
+	}
+	return clusters;
 
 }

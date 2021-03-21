@@ -19,6 +19,7 @@
 #include <chrono>
 #include "render/box.h"
 #include "render/render.h"
+#include "quiz/cluster/kdtree.h"
 #include <unordered_set>
 
 template<typename PointT>
@@ -51,6 +52,10 @@ public:
     typename pcl::PointCloud<PointT>::Ptr loadPcd(std::string file);
 
     std::vector<boost::filesystem::path> streamPcd(std::string dataPath);
-  
+
+    void Clustering(std::vector<bool> &notpro, typename pcl::PointCloud<PointT>::Ptr cluster, KdTree* tree, float distanceTol, const std::vector<std::vector<float>>& t_points, const int &id, typename pcl::PointCloud<PointT>::Ptr points);
+
+    std::vector<typename pcl::PointCloud<PointT>::Ptr> euclideanCluster(typename pcl::PointCloud<PointT>::Ptr points, KdTree* tree, float distanceTol);
+
 };
 #endif /* PROCESSPOINTCLOUDS_H_ */

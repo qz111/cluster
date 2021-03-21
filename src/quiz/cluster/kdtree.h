@@ -24,48 +24,39 @@ struct KdTree
 	KdTree()
 	: root(NULL)
 	{}
-
+	void insert_helper(Node* nNode, Node** oNode, int layer)
+	{
+		int depth=layer%(nNode->point.size());
+		if(*oNode!=NULL)
+		{
+			if((*oNode)->point[depth]>=nNode->point[depth])
+			{
+				insert_helper(nNode,&((*oNode)->left),layer+1);
+			}
+			else
+			{
+				insert_helper(nNode,&((*oNode)->right),layer+1);
+			}
+		}
+		else
+		{
+			*oNode=nNode;
+		}
+	}
 	void insert(std::vector<float> point, int id)
 	{
 		// TODO: Fill in this function to insert a new point into the tree
 		// the function should create a new node and place correctly with in the root 
 		
 		Node* nNode=new Node(point, id);
-		int layer=0;
-		Node** temp=&root;
-		while(*temp!=NULL)
-		{
-			if(layer%2==0)
-			{
-				if((*temp)->point[0]>=nNode->point[0])
-				{
-					temp=&((*temp)->left);
-				}
-				else
-				{
-					temp=&((*temp)->right);
-				}
-			}
-			else
-			{
-				if((*temp)->point[1]>=nNode->point[1])
-				{
-					temp=&((*temp)->left);
-				}
-				else
-				{
-					temp=&((*temp)->right);
-				}
-			}
-			layer++;
-		}
-		*temp=nNode;
+		
+		insert_helper(nNode,&root,0);
 		
 		
 	}
 	void search_helper(std::vector<int> &ids, Node* node_point, int layer,std::vector<float> target, float distanceTol)
 	{
-		int index=layer%2;
+		int index=layer%(target.size());
 		if(node_point!=NULL)
 		{
 			if(node_point->point[index]>target[index]+distanceTol)
@@ -78,7 +69,12 @@ struct KdTree
 			}
 			else
 			{
-				float dis=std::sqrt(std::pow(node_point->point[0]-target[0],2)+std::pow(node_point->point[1]-target[1],2));
+				float tmp=0;
+				for(int i=0; i<target.size();i++)
+				{
+					tmp+=std::pow(node_point->point[i]-target[i],2);
+				}
+				float dis=std::sqrt(tmp);
 				if(dis<=distanceTol)
 				{
 					ids.push_back(node_point->id);

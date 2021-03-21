@@ -19,6 +19,7 @@ pcl::visualization::PCLVisualizer::Ptr initScene(Box window, int zoom)
   	viewer->addCoordinateSystem (1.0);
 
   	viewer->addCube(window.x_min, window.x_max, window.y_min, window.y_max, 0, 0, 1, 1, 1, "window");
+	viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "window"); 
   	return viewer;
 }
 
@@ -95,7 +96,7 @@ std::vector<std::vector<int>> euclideanCluster(const std::vector<std::vector<flo
 	// TODO: Fill out this function to return list of indices for each cluster
 
 	std::vector<std::vector<int>> clusters;
-	std::vector<bool> not_Processed(points.size()-1,true);
+	std::vector<bool> not_Processed(points.size(),true);
 	for(int i=0;i<points.size();i++)
 	{
 		if(not_Processed[i]==true)
